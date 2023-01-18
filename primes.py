@@ -1,9 +1,10 @@
-from typing import List
 import random
-from itertools import chain
 from collections import namedtuple
+from itertools import chain
+from typing import List
 
-State = namedtuple("State", ['expr', 'cards', 'ops_used'])
+
+State = namedtuple("State", ["expr", "cards", "ops_used"])
 
 OPERATION_COUNT = 0
 
@@ -11,7 +12,8 @@ START = 1
 END = 13
 N_CARDS = 6
 
-def deal_cards(n_cards):
+
+def deal_cards(n_cards: int) -> List[int]:
     cards = []
 
     while len(cards) < n_cards:
@@ -22,14 +24,14 @@ def deal_cards(n_cards):
 
     return cards
 
-seen_exprs = {} # key: expr, val: eval(expr)
-# acts as discovered and cache
 
 def solve(target_prime: int, cards: List[int]):
+    seen_exprs = set()
+
     cards.sort(reverse=True)
     stack = []
-    stack.append(State('', cards, 0))
-    operators = ['*','+', '-'] # TODO: test whether we need /
+    stack.append(State("", cards, 0))
+    operators = ["*", "+", "-"]  # empirically it appears we do not need / operator
 
     while len(stack) > 0:
         cur_state = stack.pop()
@@ -38,6 +40,7 @@ def solve(target_prime: int, cards: List[int]):
             val = None
 
             if is_valid_postfix(expr):
+                # is valid postfix is a quick heuristic with some edges cases that are missed
                 try:
                     val = eval_postfix(expr)
                 except IndexError:
@@ -46,7 +49,7 @@ def solve(target_prime: int, cards: List[int]):
             if val == target_prime:
                 return expr
 
-            seen_exprs[expr] = val
+            seen_exprs.add(expr)
 
             if cur_state.ops_used < 5 and len(expr) > 2:
                 nxt_possible_items = chain(cur_state.cards, operators)
@@ -54,7 +57,6 @@ def solve(target_prime: int, cards: List[int]):
                 nxt_possible_items = cur_state.cards
 
             for item in nxt_possible_items:
-                # using operators is no longer valid
                 remaining_cards = cur_state.cards.copy()
                 ops_used = cur_state.ops_used
                 if item in operators:
@@ -62,10 +64,10 @@ def solve(target_prime: int, cards: List[int]):
                 elif item in remaining_cards:
                     remaining_cards.remove(item)
 
-                if expr == '':
-                    nxt_state = State(f'{item}', remaining_cards, ops_used)
+                if expr == "":
+                    nxt_state = State(f"{item}", remaining_cards, ops_used)
                 else:
-                    nxt_state = State(f'{expr},{item}', remaining_cards, ops_used)
+                    nxt_state = State(f"{expr},{item}", remaining_cards, ops_used)
 
                 stack.append(nxt_state)
 
@@ -73,7 +75,7 @@ def solve(target_prime: int, cards: List[int]):
 
 
 def is_valid_postfix(postfix_expr):
-    tokens = postfix_expr.split(',')
+    tokens = postfix_expr.split(",")
     counter = 0
 
     for c in tokens:
@@ -90,7 +92,7 @@ def is_valid_postfix(postfix_expr):
 
 def eval_postfix(postfix_expr):
     stack = []
-    tokens = postfix_expr.split(',')
+    tokens = postfix_expr.split(",")
 
     for token in tokens:
         if token.isnumeric():
@@ -102,6 +104,7 @@ def eval_postfix(postfix_expr):
             stack.append(res)
 
     return stack.pop()
+
 
 def evaluate(operator, operand1, operand2):
     global OPERATION_COUNT
@@ -117,27 +120,33 @@ def evaluate(operator, operand1, operand2):
         return operand1 - operand2
 
 
-if __name__ == '__main__':
-    #print(deal_cards(N_CARDS))
+def run_experiments():
+    global OPERATION_COUNT
+    primes = [193, 251, 257, 173, 191, 113, 397, 151, 137, 281]
+    n_deals = 5
 
-    demo1 = "12,1,+,3,13,*,5,+,5,*,+"
-    demo2 = "12,1,+"
-    demo3 = "12,+"
-    demo4 = "12,2,+,+ "
+    no_soln = []
 
-    # print(OPERATION_COUNT)
-    # print(eval_postfix(demo1))
-    # print(eval_postfix(demo2))
+    for prime in primes:
+        avg_ops = 0
+        for _ in range(n_deals):
+            OPERATION_COUNT = 0
+            cards = deal_cards(6)
+            res = solve(prime, cards)
+            print(f"target: {prime} | res: {res} | ops: {OPERATION_COUNT}")
+            avg_ops += OPERATION_COUNT
 
-    # assert is_valid_postfix(demo1)
-    # assert is_valid_postfix(demo2)
-    # assert not is_valid_postfix(demo3)
-    # assert not is_valid_postfix(demo4)
+            if res == "no solution found":
+                no_soln.append((prime, cards))
 
-    print(solve(113, [5, 6, 9, 3, 2, 1]))
+        avg_ops /= n_deals
+        print('------------------------------------------------------------')
+        print(f'{prime} required an average of {avg_ops:.0f} operations')
+        print('------------------------------------------------------------')
 
-    sol = solve(233, [13, 12, 5, 5, 3, 1])
-    print(sol)
-    assert eval_postfix(sol) == 233
+    print(f"number of no found solution: {len(no_soln)}")
+    print(no_soln)
 
-    print(f'number of operations used: {OPERATION_COUNT}')
+
+if __name__ == "__main__":
+    run_experiments()
