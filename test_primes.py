@@ -28,7 +28,7 @@ def test_eval_postfix():
     assert eval_postfix(demo2) == 233
 
 
-def test_solve():
-    target = 233
-    res = solve(target, [13, 12, 5, 5, 3, 1])
-    assert eval_postfix(res) == target
+def test_postfix_to_infix():
+    postfix = "1,3,-,5,5,12,*,13,-,*,+"
+    infix = "((1-3)+(5*((5*12)-13)))"
+    assert postfix_to_infix(postfix) == infix

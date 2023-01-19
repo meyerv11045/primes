@@ -1,8 +1,8 @@
 import random
+import statistics
 from collections import namedtuple
 from itertools import chain
 from typing import List
-
 
 State = namedtuple("State", ["expr", "cards", "ops_used"])
 
@@ -39,15 +39,16 @@ def solve(target_prime: int, cards: List[int]):
         if expr not in seen_exprs:
             val = None
 
-            if is_valid_postfix(expr):
-                # is valid postfix is a quick heuristic with some edges cases that are missed
+            # only evaluate once we have a finished possible expression
+            if cur_state.ops_used == 5 and is_valid_postfix(expr):
+                # is valid postfix is a quick check with some edges cases that are missed
                 try:
                     val = eval_postfix(expr)
                 except IndexError:
                     pass
 
             if val == target_prime:
-                return expr
+                return postfix_to_infix(expr)
 
             seen_exprs.add(expr)
 
@@ -113,40 +114,63 @@ def evaluate(operator, operand1, operand2):
     if operator == "*":
         return operand1 * operand2
     elif operator == "/":
-        return operand1 / operand2
+        return int(operand1 / operand2)
     elif operator == "+":
         return operand1 + operand2
     else:
         return operand1 - operand2
 
 
-def run_experiments():
+def postfix_to_infix(postfix_expr):
+    tokens = postfix_expr.split(",")
+
+    stack = []
+
+    for token in tokens:
+        if token.isnumeric():
+            stack.append(token)
+
+        else:
+            op1 = stack.pop()
+            op2 = stack.pop()
+            stack.append(f"({op2}{token}{op1})")
+
+    return stack.pop()
+
+
+def run_experiments(primes, n_deals):
     global OPERATION_COUNT
-    primes = [193, 251, 257, 173, 191, 113, 397, 151, 137, 281]
-    n_deals = 5
 
     no_soln = []
-
+    stats = {}
     for prime in primes:
-        avg_ops = 0
+        ops = []
         for _ in range(n_deals):
             OPERATION_COUNT = 0
             cards = deal_cards(6)
             res = solve(prime, cards)
             print(f"target: {prime} | res: {res} | ops: {OPERATION_COUNT}")
-            avg_ops += OPERATION_COUNT
 
             if res == "no solution found":
                 no_soln.append((prime, cards))
+            else:
+                ops.append(OPERATION_COUNT)
 
-        avg_ops /= n_deals
-        print('------------------------------------------------------------')
-        print(f'{prime} required an average of {avg_ops:.0f} operations')
-        print('------------------------------------------------------------')
+        avg_ops = statistics.mean(ops)
+        std_ops = statistics.stdev(ops)
+        stats[prime] = (avg_ops, std_ops)
+        print("------------------------------------------------------------")
+        print(f"{prime} | avg {avg_ops:.0f} operations | std {std_ops:.2f}")
+        print("------------------------------------------------------------")
 
     print(f"number of no found solution: {len(no_soln)}")
     print(no_soln)
 
+    print(stats)
+    return stats
+
 
 if __name__ == "__main__":
-    run_experiments()
+    primes = [359, 163, 373, 293, 269, 197, 151, 349, 317, 109]
+    n_deals = 10
+    run_experiments(primes, n_deals)
